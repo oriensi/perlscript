@@ -1,0 +1,789 @@
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="org.css" />
+#+OPTIONS: \n:t
+#+OPTIONS: ^:nil
+* regex
+** 零散知识
+   windows 下换行符为 \r\n
+   chomp和\Z不能解决
+   + 在字符组内部
+     *永远不是元字符
+     -通常是元字符(只有在开头的时候不是)
+     \b在字符组内外的意义不一样
+   POSIX规定   .不能匹配NUL(值为0的字符),大多数的脚本语言容许文本中的出现NUL(而且可以用.匹配)
+   可以用 \C 匹配单个字节  但最好不用
+
+   + 字符组的运算
+     .NET提供字符组的“减法”运算  [a-z]-[aeiou]
+     Java regex pachage 可以使用 &&  [a-z]&&[^aeiou]  [ [abc][xyz] ] [abc[xyz]] 等
+
+   \Q\E  取消之间元字符的特殊含义
+
+   + 多选结构(|)
+     优先级很低  eg. this and | or that 等价于 (this and)|(or that)
+     (this|that|)   空表达式在任何情况下都能匹配  相当于  (this|that)?
+** 元字符 字符组简记
+   \R 匹配断行(\n \r\n)
+   \v 垂直空白符
+   \h 水平空白符
+   \d 等价于[0-9],如果工具软件支持Unicode，能匹配所有的Unicode数字
+   \D [^\d]
+   \w [a-zA-Z0-9_] 某些工具软件不能匹配_ 而另一些则能支持当前locale中的所有数字和字符。
+   如果支持Unicode 通常能表示所有数字和字符
+   在java.util.regex和PCRE(也包括PHP)中 严格等价于[a-zA-Z0-9_]
+   \s [ \f\n\r\t\v] 在支持Unicode的系统中，有时包含Unicode的换行控制字符U+0085，
+   有时包含"空白"属性\p{Z}
+   \S [^\s]
+** 字符缩略表示法
+   | \a | 警报　     | 通常对应ASCII中的<BEL>字符，八进制编码007                              |
+   | \b | 退格　     | 通常对应ASCII中的<BS>字符，八进制编码010.                              |
+   |    |            | (在许多流派中，\b只有在字符组内部才表示这样的意义，否则代表单词分界符) |
+   | \e | Escape字符 | 　对应ASCII中的<ESC>字符，八进制编码033                                |
+   | \f | 进纸符　   | 对应ASCII中的<FF>字符，八进制编码014                                   |
+   | \n | 换行符　   | Unix DOS/Windows上对应ASCII的<LF>，八进制编码012.                      |
+   |    |            | MacOS中对应ASCII的<CR>字符，十进制编码015.                             |
+   |    |            | 在Java或任意一种.NET语言中，不论采用什么平台，都对应ASCII<LF>字符      |
+   | \r | 回车　     | 对应ASCII的<CR>字符。在MacOS中对应ASCII的<LF>字符。                    |
+   |    |            | 在Java或任意一种.NET语言中，不论采用什么平台，都对应ASCII<CR>字符      |
+   | \t | 水平制表符 | 对应ASCII的<HT>字符，八进制编码011                                     |
+   | \v | 垂直制表符 | 对应ASCII的<VT>字符，八进制编码013                                     |
+   
+** 转义及控制字符
+   八进制转义  \num         \015\012  表示ASCII的CR/LF 序列
+   十六进制转义 \xnum \x{num} \unum \Unum
+   \nbsp\nbsp perl只支持\x
+   \nbsp\nbsp java支持 \xFF \uFFFF
+   控制字符    \cchar      \cH 匹配ASCII中的退格符， \cJ 匹配ASCII中的换行符
+   GNU Emacs的元序列为 ?^char  如  ?^H
+   
+** 量词
+   匹配优先量词 * + ? {num, num}  尽可能多的匹配
+   忽略优先量词 *?  /+?  ??  {num, num}?  尽可能少的匹配
+   占有优先量词 *+  ++  ?+  {num, num}+  一旦匹配不允许回溯 类似固化分组 (java.util.regex  PCRE)
+
+** 锚点
+   \A 匹配字符串的绝对开头
+   \z 匹配字符串的绝对结尾
+   \Z 匹配字符串的结尾可以怱略换行符
+   一般与^$相似
+   在/m 模式下^$匹配行首行尾
+   \G 上一次匹配的结束位置  一般在 /c 模式下使用
+** 模式
++ /m 多行模式　　　　　　　 ^$可以字符串内部的位置　\A \Z 相当于普通的　^ $
++ /x 宽松排列和注释模式　　可以在表达式中加入空白符
++ /s 单行模式(跨行匹配)　　此模式下 .可以匹配\n
++ /i 不区分大小写
++ /e 修饰词把REPLACEMENT当作一个perl代码块，而不仅仅是一个替换的字串。
+  执行这段代码后得出的结果当作替换字串使用。
+  可以多次使用/e 多次求值
++ /g 全局模式
+  | 匹配类型 | 尝试开始位置            | 匹配成功时的pos值    | 匹配失败是的pos设定 |
+  | m/.../   | 字符串起始位置(忽略pos) | 重置为undef          | 重置为undef         |
+  | m/.../g  | 字符串的pos位置         | 匹配结束位置的偏移值 | 重置为undef         |
+  | m/.../gc | 字符串的pos位置         | 匹配结束位置的偏移值 | 不变                |
++ /o 只编译一次 针对模式中的变量代换
++ 字符解释方式 ASCII(/a) Unicode(/u) locale(/l)
++ /aa 只采用ASCII方式的大小写映射处理 (unicode编码大小写比较乱)
++ /gc 匹配失败不会重置目标字符串的pos 一般与\G一起使用  /c 离不开/g
+  #+BEGIN_SRC perl
+  while(not  $html =~ m/\G\z/gc){
+      if    ($html =~ m/\G( <[^>]+>   )/xgc) {print "TAG: $1\n"           }
+      elsif ($html =~ m/\G( &\w+;     )/xgc) {print "NAMED ENTITY: $1\n"  }
+      elsif ($html =~ m/\G( &\#\d+;   )/xgc) {print "NUMERIC ENTITY: $1\n"}
+      elsif ($html =~ m/\G( [^<>&\n]+ )/xgc) {print "TEXT: $1\n"          }
+      elsif ($html =~ m/\G  \n         /xgc) {print "NEWLINE\n"           }
+      elsif ($html =~ m/\G( .         )/xgc) {print "ILLEGAL CHAR: $1\n"  }
+      else {
+          die "$0: oops, this shouldn't happen!";
+      }
+  }
+
+  #+END_SRC
++ 模式修饰符
+  (?i)(?-i) 在中间启用模式   <B>(?i)very(?-i)</B>
+  大多数的实现方式中作用范围只限于括号内部  python不支持
+  <B>(?:(?i)very)</B>  <B>(?i:very)</B>
+  类似有 x   s   m  模式
+** 条件判断 (?if then else)
+** 分组 捕获 环视
+*** 捕获型括号
+    $str =~ m/some(regex)things/ # 标量环境下返回是否匹配  列表环境下返回捕获到的内容
+
+*** 非捕获型括号
+    只分组不捕获       (?:
+*** 环视
+    肯定顺序环视       (?=
+    否定顺序环视       (?!
+    肯定逆序环视       (?<=
+    否定逆序环视       (?<!
+    
+*** 固化分组 (?>...)
+    当匹配运行到此结构之后，那么此结构体中的所有备用状态都会被放弃。
+    括号内的子表达式中未尝试过的备用状态都不存在了，所以回溯不能选择其中的状态。
+    
+    perl 和 python 限制逆序环视只能匹配固定长度的文本
+    (?<!books?)   (?<!^\w+)   错误
+    
+    python php .net 支持命名捕获  (?P<Area>\d\d\d)  (?<Area>\d\d\d)
+    
+*** 在正则中内嵌代码
++ 动态正则结构 (??{perl code})
+  #+BEGIN_SRC perl
+    ^(\d+)(??{"X x { $1 }"})$  # 匹配 '3XXX' '12XXXXXXXXXXXX' 不能匹配'3X' '7XXXX'
+  #+END_SRC
+  匹配嵌套()
+  #+BEGIN_SRC perl
+  my $levelN;
+  $levelN = qr/ (?> [^()]+ | \( (??{ $levelN } )\) )*  /x;
+  if( $text =~ m/\b ( \w+ \( $levelN \) ) /x)
+    print "found function call: $1";
+  #+END_SRC
++ 内嵌代码结构 (?{arbitrary perl code})
+  不需要用到返回值 更为通用,适合调试正则
+  #+BEGIN_SRC perl
+  "abcdefgh" =~ m{
+    (?{print "Starting match at [$`|$']\n"})
+    (?:d|e|f|g)
+  }x;
+  #+END_SRC
+  结果是：
+  starting match at [|abcdefgh]
+  starting match at [a|bcdefgh]
+  starting match at [ab|cdefgh]
+  starting match at [abc|defgh]
+** 引擎
+   NFA DFA
+   + DFA
+     最左最长原则 不支持许多功能 没有回溯 文本主导
+     速度与正则表达式无关
+   + NFA 表达式主导 回溯
+     速度与表达式直接相关
+     
+** POSIX 字符组
+   [:alnum:]  字母字符和数字字符
+   [:alpha:]  字母
+   [:blank:]  空格和制表符
+   [:cntrl:]  控制字符
+   [:digit:]  数字
+   [:graph:]  非空字符(即空白字符 控制字符之外的字符)
+   [:lower:]  小写字母
+   [:print:]  类似[:graph:] 但是包含空白字符
+   [:punct:]  标点符号
+   [:space:]  所有的空白字符
+   [:upper:]  大写字母
+   [:xdigit:] 十六进制中容许出现的数字
+** Unicode
+*** Unicode 属性，字母表和区块
+**** 属性
+     \p{...} \P{...}
+     基本的Unicode属性分类
+     | 分类 | 等价表示及描述                                                      |
+     |--------+----------------------------------------------------------------------------|
+     | \p{L}  | \p{Letter}  字符                                                           |
+     | \p{M}* | \p{Mark}    不能单独出现必须与其他基本字符一起出现(重音符号、包围框，等等) |
+     | \p{Z}  | \p{Separator} 用于表示分隔，但本身不可见的字符(各种空白字符) |
+     | \p{S}  | \p{Symbol} 各种图形符号(Dingdats)和字母符号                     |
+     | \p{N}  | \p{Number} 任何数字字符                                              |
+     | \p{P}  | \p{Punctutation} 标点字符                                                  |
+     | \p{C}  | \p{Other}   匹配其他任何字符(很少用于正常字符)                             |
+     基本的Unicode子属性
+     | 属性   | 等价表示法及说明                                                                       |
+     |--------+----------------------------------------------------------------------------------------|
+     | \p{Ll} | \p{Lowercase_Letter} 小写字母                                                          |
+     | \p{Lu} | \p{Uppercase_Letter} 大写字母                                                          |
+     | \p{Lt} | \p{Titlecase_Letter} 出现在单词开头的字母                                              |
+     | \p{L&} | \p{Ll} \p{Lu} \p{Lt} 并集的简写                                                        |
+     | \p{Lm} | \p{Modifier_Letter} 少数形似字母的，有特殊用途的字符                                   |
+     | \p{Lo} | \p{Other_Letter} 没有大小写形式，也不属于修饰符的字母，包括希伯来语 阿拉伯语..中的字母 |
+     |--------+----------------------------------------------------------------------------------------|
+     | \p{Mn} | \p{Non_Spacing_Mark} 用于修饰其它字符的字符如重音符 变音符 某些“元音记号”和语调标记  |
+     | \p{Mc} | \p{Spacing_Combining_Mark} 会占据一定的宽度的修饰字符                                  |
+     |        | (各种语言中的大多数“元音记号”孟加拉语，印度古哈拉地语。。。)                         |
+     | \p{Me} | \p{Encolsing_Mark} 可以围住其他字符的标记如圆圈方框钻石型等                            |
+     |--------+----------------------------------------------------------------------------------------|
+     | \p{Zs} | \p{Space_Separator} 各种空白字符 如空格符不间断空格以及各种固定宽度的空白字符          |
+     | \p{Zl} | \p{Line_Separator} LINE SEPARATOR 字符(U+2028)                                         |
+     | \p{Zp} | \p{Paragraph_Separator} PARAGRAPH SEPARATOR 字符(U+2029)                               |
+     |--------+----------------------------------------------------------------------------------------|
+     | \p{Sm} | \p{Math_Symbol} 数学符号 + 除 表示分数的横线                                           |
+     | \p{Sc} | \p{Currency_Symbol} 货币符号 $ ￥ €                                                    |
+     | \p{Sk} | \p{Modifier_Symbol} 大多数版本中它表示组合字符，                                       |
+     |        | 但是作为功能完整的字符，它们有自己的意义                                               |
+     | \p{So} | \p{Other_Symbol} 各种印刷符号框图符号盲文符号以及非字母形式的中文字符等                |
+     |--------+----------------------------------------------------------------------------------------|
+     | \p{Nd} | \p{Decimal_Digit_Number} 各种字母表中从0-9的数字(不包括中日韩文)                       |
+     | \p{Nl} | \p{Letter_Number} 几乎所有的罗马数字                                                   |
+     | \p{No} | \p{Other_Number} 作为加密符号和记号的数字，非阿拉伯数字的数字表示字符                  |
+     |        | (不包括中文 日文 韩文中的数字)                                                         |
+     |--------+----------------------------------------------------------------------------------------|
+     | \p{Pd} | \p{Dash_Punctuation} 各种格式的连字符和短划线                                          |
+     | \p{Ps} | \p{Open_Punctuation} ( 上书名号 《 等                                                  |
+     | \p{Pe} | \p{Close_Punctuantion} ) 下书名号 》 等                                                |
+     | \p{Pi} | \p{Initial_Punctuation} « “ 〈 等                                                     |
+     | \p{Pf} | \p{Final_Punctutaion} » ’ 〉等                                                        |
+     | \p{Pc} | \p{Connector_Punctuation} 少数有特殊语法含义的标点，如_                                |
+     | \p{Po} | \p{Other_Punctuation} 用于表示其他所有标点字符: !&. 等                                 |
+     |--------+----------------------------------------------------------------------------------------|
+     | \p{Cc} | \p{Control} ASCII和Latin-1编码中的控制字符(TAB LF CR 等)                               |
+     | \p{Cf} | \p{Format} 用于表示格式的不可见字符                                                    |
+     | \p{Co} | \p{Private_Use} 分配与私人用途的代码点(如公司的logo)                                   |
+     | \p{Cn} | \p{Unassigned} 目前尚未分配字符的代码点                                                | 
+     
+**** 区块
+     \p{InTibetan} 从U+0f00 到 U+0fff的256个代码点
+     区块可能含未赋值的代码点
+     并不是和区块相关的所有字符都在区块内部
+     区块通常包含不相关的字符
+     属于横个字母表的字符可能同时包含于多个区块
+*** Unicode 组合字符序列 \X
+    #+BEGIN_SRC perl
+    $reg = qr/\X/;
+    # 缩略表示 \P{M}\p{M}* 它可以视为 .的扩展。它匹配一个基本字符(除\p{M}之外的任何字符)，
+    # 之后可能有任意数目的组合字符(除\p{M}之外)
+    # \X 与 . 的差别
+    # 能够匹配结尾的组合字符
+    # \X始终能匹配换行符和其他Unicode行终结符
+    # 点号无论什么情况下都能匹配任何字符，而\X 不能匹配以组合字符开头的字符
+    #+END_SRC
+
+** TODO java regex(other language)
+*** java regex 中的 \
+   java 中Pattern.compile(String str);
+   str 并不是正则表达式，只是一个字符串，经过编译之后才是正真的表达式
+   Pattern.compile("[\u2e80-\u9FFF]")
+   经过编译 \u2e80 \u9FFF 会变为相应的字符，整个表达式变为类似 [a-z]这种形式
+   Pattern.compile("[\\u2e80-\\u9FFF]")
+   编译后 变为 [\u2e80-\u9fff] 这种形式
+   两种形式都可以匹配成功
+
+* 一些特殊 默认变量
+** 缺省变量
+   | 变量 | 英文名 | 说明     |
+   |------+--------+----------|
+   | $_   | $ARG   | 默认变量 |
+   | @_   |        | 函数参数 |
+** 正则中的变量
+   $1 $2 .. 捕获变量
+   | 变量 | 英文名              | 说明                                       |
+   |------+---------------------+--------------------------------------------|
+   | $&   | $MATCH              | 匹配的部分                                 |
+   | $`   | $PREMATCH           | 匹配部分之前的内容                         |
+   | $'   | $POSTMATCH          | 未匹配的部分                               |
+   | $+   | $LAST_PAREN_MATCH   | 最后一个圆括号中匹配的部分                 |
+   | $*   | $MULTILINE_MATCHING  | 多行匹配须将此值设成1                      |
+   | @+   | @LAST_MATCH_END     | 保存当前匹配的最后成功子匹配的结尾的偏移量 |
+   |      |                     | $+[0]是整个匹配的偏移量,$+[1]...           |
+   | @-   | @LAST_MATCH_START   | 同上 开始偏移量                            |
+   #+begin_src perl
+ if("hello there, neighbor" =~ /\s(\w+),/){
+     print $1;   # "there"
+     print $&;   # "there,"
+     print $`;   # "hello"
+     print $';   # "neighbor"
+ }
+   #+end_src
+** 输入输出的变量
+   | 变量 | 英文名                        | 说明                                                        |
+   |------+-------------------------------+-------------------------------------------------------------|
+   | $.   | $INPUT_LINE_NUMBE             | 最近一次执行读操作的当前行数                                |
+   | $/   | $INPUT_RECORD_SEPARATOR       | 输入记录分隔符,缺省是新行 chomp 取自变量"$/"                |
+   | $,   | $OUTPUT_FIELD_SEPARATOR       | print 操作的输出域分隔符                                    |
+   | $\   | $OUTPUT_RECORD_SEPARATOR      | print 操作的输出记录分隔符,通常用于省略换行符               |
+   | $"   | $LIST_SEPARATOR               | 当数组转换成字符串时,元素缺省以空格分隔                     |
+   | $^L  | $FORMAT_FORMFEED              | 当执行一个进纸动作时输出的字符.缺省是\f                     |
+   | $:   | $FORMAT_LINE_BREAK_CHARACTERS    | 就是目前可以作为折行的字符集合.缺省值是\n(空白 换行 连字号) |
+   | $^A  | $ACCUMULATOR                  | 格式化行的写收集器的当前值                                  |
+** 错误变量
+   | 变量 | 英文名             | 说明                                  |
+   |------+--------------------+---------------------------------------|
+   | $?   | $CHILD_ERROR       | 包含了最近一次执行的外部程序结束状态  |
+   | $!   | $OS_ERROR,$ERRNO   | 包含了系统的错误.(错误码 或 错误信息) |
+   | $\^E | $EXTENDED_OS_ERROR   | 在某些平台,返回扩展错误信息           |
+   | $@   | $EVAL_ERROR        | 从上一个eval命令的Perl语法错误信息    |
+   
+** 系统变量
+   | $ $   | $PROCESS_ID $PID          | 运行当前Perl进程的pid                           |
+   | $<    | $REAL_USER_ID $UID        | 当前进程的实际用户标识符(uid)              |
+   | $>    | $EFFECTIVE_USER_ID $EUID   | 当前进程的有效用户标识符                               |
+   | $(    | $REAL_GROUP_ID $GID       | 当前进程的实际组标识符(gid)                            |
+   | $)    | $EFFECTIVE_GROUP_ID $EGID   | 当前进程的有效组标识符                                 |
+   | $0    | $REOGRAM_NAME             | 正在执行的Perl脚本的文件名称.                          |
+   | $[    |                           | 数组中第一个元素的序号或字符串中第一个字符的序号.缺省是0 |
+   | $]    | $PERL_VERSION             | 返回版本号,加上补丁级别除以1000                        |
+   | $^D   | $DEBUGGING                | 调试标志的当前值                                       |
+   | $^F   | $SYSTEM_FD_MAX            | 最大的系统文件描述符,通常是2                           |
+   | $^I   | $INPLACE_EDIT             | 原地编辑扩展的当前值.可使用undef禁止原地编辑           |
+   | $^M   |                           | $M的内容能用件紧急内存池,以便Perl                      |
+   |       |                           | 出out-of-memory错误时使用.使用$M要求Perl进行特殊的编译 |
+   | $^O   | $OSNAME                   | 编译Perl本身时的操作系统名称                           |
+   | $^P   | $PERLDB                   | 是否打开调试                                           |
+   | $^T   | $BASETIME                 | 当前脚本开始进行的时间,以秒为单位,从1970年开始         |
+   | $^W   | $WARNING                  | 警告开关的当前值,真或假                                |
+   | $^X   | $EXECUTABLE_NAME          | 二进制Perl执行文件的名称                               |
+   | $ARGV |                           | 当从<>读入时的当前文件名                               |
+   
+** 其它
+   | 变量  | 说明                                 |
+   |-------+--------------------------------------|
+   | @ARGV | 命令行参数                           |
+   | $ARGV | 当前文件的文件名,代表标准输入<STDIN> |
+   | @INC  | 寻找Perl脚本的地址表                 |
+   | %INC  | 通过do或requir包含的文件名的目录     |
+   
+* 操作符
+** DONE 结合性、优先级
+   | 结合性   | 操作符                                 |
+   |----------+----------------------------------------|
+   | 左       | 括号；给定参数的列表操作符             |
+   | 左       | ->                                     |
+   |          | ++ --                                  |
+   | 右       | **(乘幂运算)                           |
+   | 右       | \ ! ~ + -                              |
+   | 左       | ＝~ ！~                                |
+   | 左       | * / % x                                |
+   | 左       | + - . (双目操作符)                     |
+   | 左       | << >>                                  |
+   | 无连接性 | 具名的单目操作符(-X文件测试; rand)     |
+   | 无连接性 | < <= > >= lt le gt ge ("不相等操作符") |
+   | 无连接性 | == != <=> eq ne cmp ("相等"操作符)     |
+   | 左       | &                                      |
+   | 左       | ｜ ^                                   |
+   | 左       | &&                                     |
+   | 左       |                                        |
+   | 无连接性 | .. ...(范围)                           |
+   | 右       | ?:                                     |
+   | 右       | \= += -= .=                            |
+   | 左       | , =>                                   |
+   | 无连接性 | 列表操作符(向右结和)                   |
+   | 右       | not                                    |
+   | 左       | and                                    |
+   | 左       | or xor                                 |
+   
+** DONE ~~ 智能匹配
+   | 范例                      | 匹配类型                           |
+   |---------------------------+------------------------------------|
+   | %a ~~ %b                  | 哈希的键是否一致                   |
+   | %a ~~ @b  @a ~~ %b        | %a中的至少一个键在列表@b中         |
+   | %a ~~ /Fred/ /fred/ ~~ %b | 至少有一个键匹配给定的模式         |
+   | 'fred' ~~ %a              | 是否存在$a{fred}                   |
+   | @a ~~ @b                  | 数组是否相同                       |
+   | @a ~~ /fred/              | @a中至少有一个元素匹配模式         |
+   | $name ~~ undef   $name    | $name 没有定义                     |
+   | $name ~~ /fred/           | 模式匹配                           |
+   | 123 ~~ '123.0'            | 数值和"numish"类型的字符串是否相等 |
+   | ' Fred' ~~ ' fred'        | 字符串是否相同                     |
+   | 123 ~~ 456                | 数值是否相等                       |
+   
+** 按位运算操作符
+   | 表达式   | 意义                                                        |
+   |----------+-------------------------------------------------------------|
+   | 10 & 12  | 按位与 哪些位在两边同时为真(此例得8)                        |
+   |          | print 'a'&'_'; #得到A                                       |
+   | 10 ｜ 12 | 按位或 哪些位在任一边为真(此例得14)                         |
+   |          | print 'A'  \vert ''; #得到a  设置文件格式O_CREAT \vert O_TRUNC   |
+   | 10 ^ 12  | 按位异或 哪些位在任何一边为真 但不能两边都为真(此例得6)     |
+   | 6 << 2   | 按位左移 将左边操作数向左移动右操作数位,低位以0补(此例得24) |
+   | 25 >> 2  | 按位右移 将左操作数向右移动右操作数位,丢弃低位(此例得6)     |
+   | ~10      | 按位取反 返回逐位反相之后的值(此例得0xfffffff5 32位)        |
+   
+** 字符串操作符
+   . 将两个字符串连接到一起 eg.  "hello world"."\n"
+   x 将字符串重复几次      eg.  "fred" x 3
+   右操作数在使用前会先取整
+   对列表同样可用  @array=(1,2,3,4)x2; #@array=(1,2,3,4,1,2,3,4)
+   
+** 逻辑操作符
+   | 操作符 | 命名 | 说明 |
+   |--------+------+------+
+   | \!     | not  | 非   |
+   | \vert\vert  | or   | 或   |
+   | &&     | and  | 与   |
+   |        | xor  | 异或 |
+** DONE 比较操作符
+   | 比较     | 数字 | 字符串 | 返回值               |
+   |----------+------+--------+----------------------|
+   | 相等     | ==   | eq     | 相等返回真           |
+   | 不等     | ！=  | ne     | 不等返回真           |
+   | 小于     | <    | lt     | 小于返回真           |
+   | 大于     | >    | gt     | 大于返回真           |
+   | 小于等于 | <=   | le     | 不小于返回真         |
+   | 大于等于 | >=   | ge     | 不大于返回真         |
+   | 比较     | <=>  | cmp    | 相等为0,大为1,小为-1 |
+   
+* 变量
+** 基础知识
+*** 数字
+   未赋值的标量 undef 作为数字时为0
+   0377 (oct)
+   0xff (hex)
+   0b11111111 (bin)    都表示255(dec)
+   可以用 hex oct 转换为10进制
+   sprintf 将10进制转换为2(%b) 8(%o) 16(%x)进制
+   整数直接量允许插入_便于阅读(非十进制也可以)
+   eg. 61_298_768
+   
+** here 文档
+   here 文档定义一个字符串,它的结束符用紧接着<<的符号定义,
+   这个符号可以用双引号或单引号括起来.同时它支持插值
+   
+   here 文档仅仅是引号的一种可替代的形式.
+   在你可以使用单引号或者双引号的地方就可以使用here文档.
++ eg.
+  #+begin_src perl
+  my $price = 'right';
+  #here docuemnts
+  print <<EOF;
+  The price is $price.
+  EOF
+
+  #+end_src
+  结果将打印出: The price is right.
+  #+begin_src perl
+  use strict;
+  my $someURL = 'http://www.perl.com';
+  my $html = <<ENDHTML;
+  <HTML>
+  <BODY>
+  <P><A HREF="$someURL">Perl Homepage</A></P>
+  </BODY>
+  </HTML>
+  ENDHTML
+  open (DATAFILE, ">data.file")||die "could not open 'data.file' $!";
+  print DATAFILE $html;  #print to file
+  close(DATAFILE);
+  #+end_src
+** 双引号内的\转义
+   | 组合    | 意义                              |
+   |---------+-----------------------------------|
+   | \n      | 换行                              |
+   | \r      | 回车                              |
+   | \t      | 制表符                            |
+   | \f      | 换页符                            |
+   | \b      | 退格                              |
+   | \a      | 系统响铃                          |
+   | \e      | Esc                               |
+   | \007    | oct 表示的ASCII值(响铃)           |
+   | \x7f    | hex 表示的ASCII值(删除键代码)     |
+   | \{2744} | hex unicode代码点(雪花）          |
+   | \cC     | 控制符 Control                    |
+   | \\      | 反斜线                            |
+   | \       | 双引号                            |
+   | \l      | 下个字母小写                      |
+   | \L      | 后面所有字母小写直到\E            |
+   | \u      | 下个字母大写                      |
+   | \U      | 后面所有字母大写直到\E            |
+   | \Q      | 把它到\E之间的非单词字符加上\转义 |
+   | \E      | 作为\L \U \Q 的结束               |
+   
+* 列表与数组
+** 基础知识
++ 列表直接量
+  (1, 2, 3, 4)
+  (1..5)
+  (1.7..5.7)     同上(取整)
+  (1, 2..5)
+  (5..1)         空
++ qw 简写
+  eg. qw(fred barney betty)
+  或 qw() qw!! qw// qw## qw[] qw{} qw<> 等
++ 索引
+  访问越界  返回undef
+  为索引值超过数组尾端的元素赋值 数组会自动扩大 中间补充元素为undef
+  $#   最大索引值
+  负数索引值  从数组尾端往回计数(最后一个元素 索引值 -1)
++ print
+  print @array;  打印列表 各元素之间没有空格
+  print "@array"; 打印列表 各元素之间有空格
+  print @array."\n" @array 打印元素个数
+** 函数
++ pop(出) push(入) 对数组尾端进行操作
++ shift(出) unshift(入) 对数组头进行操作
++ splice 对数组中间元素   删除、添加
+  splice array, offset, length, list
+  
++ reverse  将列表倒序输出 不改变原来的顺序
++ sort     ASCII 码排序   也可以自定义排序方法
+  #+begin_src perl
+  #按字典方式排序
+  @articles = sort @files;
+  #实现同样的目的,但是使用了显式的排序函数
+  @articles = sort{$a cmp $b} @files;
+  #现在是大小写不敏感
+  @articles = sort{uc($a) cmp uc($b)} @files;
+  #现在是倒排序
+  @articles = sort{$b cmp $a} @files;
+  #按数字递增方式排序
+  @articles = sort{$a <=> $b} @files;
+  #按数字递减方式排序
+  @articles = sort{$b <=> $a} @files;
+  #现在使用内联函数按照值而不是关键字的方式排序哈希表 %aeg
+  @eldest = sort{$age{$b} <=> $age{$a}} keys %age;
+  #+end_src
++ map EXPR, list 对列表中的每个元素执行EXPR
+  #+begin_src perl
+  @numbers = (80, 101, 114, 108);
+  @characters = map(chr $_, @numbers);
+
+  #+end_src
++ split 将根据指定的模式拆分字符串
+  my @fields = split /separator/, $string;
+  默认以空白符分隔$_ 中的字符串
+  #+begin_src perl
+  my @fields = split /:/, "abc:def:g:h"; #得到("abc", "def", "g", "h")
+  my @fields = split;   #my @fields = split /\s+/, $_
+
+  #+end_src
+  
++ join 与split 刚好相反
+  my $result = join $glue, @pieces;
+  
++ scalar 返回数组大小
+  #+begin_src perl
+  @names = (Jo, Pete, Bill, Zeke, All);
+  print scalar(@names);   #6
+  
+  #+end_src
+  
++ delete 清空该位置的元素,但不改变各元素的位置
+  #+begin_src perl
+  my @array = (0, 1, 2, 3, 4, 5, 6);
+  delete $array[3];
+  print jion(':', @array)."\n";  #0:1:2::4:5:6
+
+  #+end_src
++ exists 判断该元素是否存在
+  defined 判断该元素是否为undef
+  元素被delete后 exitsts返回 false
+  一个元素为undef exitsts返回 true
+  
++ chop 每一个元素去掉最后一个字符
+* 哈希 散列
+** TODO 基础知识
+   key 唯一 value 可以重复  key 只能是字符串
+   可以直接赋值  %new_hash = %old_hash
+   %ip_address = reverse %host_name;  #reverse 可以实现键值反转
+   使用 => 时 key 的引号可以省略
+   #+begin_src perl
+my %last_name = {
+    fred   => 'flintstone',
+    dino   => undef,
+    barney => 'rubble',
+    betty  => 'rubble',
+}
+   #+end_src
+   %ENV 哈希
+** TODO 函数
++ keys values 函数 可以返回哈希键值列表
+  my @k = keys %hash;
+  my @v = values %hash;
++ each foreach
+  whiel(($key, $value) = each %hash){ }
++ delete 删除指定的键及其相对应的值 
+* TODO 数据结构
++ [] 将一个列表当成一个标量
+  #+BEGIN_SRC perl
+  $wife{"Jacob"} = ["Leah", "Rachel", "Bilhah", "Zilpah"];
+  or
+  $wife{"Jacob"}[0] = "Leah";
+  $wife{"Jacob"}[1] = "Rachel";
+  #+END_SRC
++ {} 将哈希当成一个标量
+  #+BEGIN_SRC perl
+  $kids_of_wife{"Jacob"} = {
+      "Leah" => ["Reuben", "Simeon", "Levi", "Judah", "Issachar", "Zebulun"],
+      "Rachel" => ["Joseph", "Benjamin"],
+      "Bilhah" => ["Dan", "Naphtali"],
+      "Zilpah" => ["Gad", "Asher"],
+  };
+  or
+  $kids_of_wife{"Jacob"}{"Leah"}[0] = "Reuben";
+  $kids_of_wife{"Jacob"}{"Leah"}[1] = "Simeon";
+  #+END_SRC
+  
+* 引用
+  perl中有两种引用:硬引用和符号引用,因为符号引用被use strict禁止了,
+  所以一般的引用都是指硬引用
+  创建 使用反斜杠操作符可以创建引用.\相当于c语言中的&
+  $numberref = \42;
+  $messageref = \"hello ref";
+  [...]{...}创建一个指向数组或hash的引用,
+  它们创建一个自己内容的副本并返回指向它的一个引用,所以与\操作符不一样
+  @array = [1,2,3,4];
+  @copyhasref = {%hash};
++ 访问 $相当于c中的*,用于访问引用指向的值
+  各种类型的引用
+  | 引用     | 例子                                           |
+  |----------+------------------------------------------------|
+  | 标量引用 | $ra = \$ra; #指向标量的引用                    |
+  |          | $$ra = 2; #标量引用解引用                      |
+  |          | $ra = \1.6; #指向常量的引用                    |
+  | 数组引用 | $rl = \@l; #指向已存在数组的引用               |
+  |          | $rl = [1,2,3]; #指向匿名数组的引用             |
+  |          | push(@$rl,"a"); #解引用                        |
+  |          | print $rl->[3]; #$rl 指向的数组的第四个元素    |
+  | 哈希引用 | $rh = \%h; #指向hash的引用                     |
+  |          | $rh = {"laurel"=>"hardy"}; #指向匿名hash的引用 |
+  |          | print keys(%$rh); #解引用                      |
+  |          | $x = $rh->{"laurel"}; #取得单个元素的箭头符号  |
+  |          | @slice = @$rh{"laurel","romeo"); #hash 片断    |
+  | 代码引用 | $rs = \&foo;                                   |
+  |          | $rs = sub {print "foo"};                       |
+  |          | &$rs();                                        |
++ 通过ref函数返回引用的类型
+  $ref = \[1,2,3,4];
+  print "ref type ".ref($ref);
+  该函数的返回值
+  | SCALAR | 标量引用     |
+  | ARRAY  | 数组引用     |
+  | HASH   | hash引用     |
+  | CODE   | 例程引用     |
+  | GLOB   | Typeglob引用 |
+  | IO     | 文件句柄引用 |
+  | REF    | 指向另一个引用 |
+  | LVALUE | 除了SCALAR ARRAY HASH之外的可分配的值 |
+  
+* TODO 子程序
+* string 操作
+** 基本操作
+   $str =~ tr///;  对应替换
+   (substr $str, , ) = "...";  替换 substr 截取子串
+   my $pos = index $str, $subs; $subs在$str的位置
+   my $pos = rindex $str, $subs; 从右边起第一次出现的$subs 在$str的位置
+   
+   split(match operand, target string, chunk-limit operand)
+   match operand 为' '时，相当于/\s+/
+   split(" ", "  a short   test   ")得到('a', 'short', 'test')
+   使用 \s+ 会保留开始的空白字符
+   如果没有设置regex运算元,则默认使用一个空格符
+   regex为空,把目标字符串分割为字符
+   chunk-limit operand 切分字符串的上限
+   保留结尾的空白字符可以将chunk-limit设为－1
+   当split中带捕获型括号的match运算元时返回的list中会多出些独立的元素,
+   多出的元素不受分段上限的限制.如果含有多个捕获型括号会多出多个元素,
+   未参与匹配的捕获型括号对应的元素为undef.
+   
+   chop       去掉字符串的最后一个字符
+   chomp()    去掉字符串末尾的换行符
+** 字符操作
+   chr(0x05D0) 将代码点转换成对应的字符 reverse ord
+   ord EXPR 返回EXPR第一个字符的代码点
+   
+** 大小写转换
+   lc EXPR 转换为小写
+   uc EXPR 转换为大写
+   ucfirst EXPR 将首字母转换为大写
+   lcfirst EXPR 将首字母转换为小写
+* 文件目录及IO
+** TODO glob
+** DONE 文件测试
+   | 文件测试操作符 | 意义                                                     |
+   |----------------+----------------------------------------------------------|
+   | -r             | 文件或目录,对目前(有效的)用户或组来说是可读的            |
+   | -w             | 文件或目录,对目前(有效的)用户或组来说是可写的            |
+   | -x             | 文件或目录,对目前(有效的)用户或组来说是可执行的          |
+   | -o             | 文件或目录,由目前(有效的)用户拥有                        |
+   | -R             | 文件或目录,对实际的用户或组来说是可读的                  |
+   | -W             | 文件或目录,对实际的用户或组来说是可写的                  |
+   | -X             | 文件或目录,对实际的用户或组来说是可执行的                |
+   | -O             | 文件或目录,由实际的用户拥有                              |
+   | -e             | 文件或目录,是存在的                                      |
+   | -z             | 文件存在而且没有内容(对目录来说永远为假                  |
+   | -s             | 文件或目录存在而且有内容(返回值是以字节为单位的文件大小) |
+   | -f             | 是普通文件                                               |
+   | -d             | 是目录                                                   |
+   | -l             | 是符号链接                                               |
+   | -S             | 是socket类型的文件                                       |
+   | -p             | 是命名管道,也就是先入先出(fifo)队列                      |
+   | -b             | 是块设备文件(比如某个可挂臷的磁盘)                       |
+   | -c             | 是字符设备文件(比如某个I/O设备)                          |
+   | -u             | 文件或目录设置了setuid位                                 |
+   | -g             | 文件或目录设置了setgid位                                 |
+   | -k             | 文件或目录设置了sticky位                                 |
+   | -t             | 文件句柄是TTY设备(类似系统函数isatty()的测试;            |
+   |                | 不能对文件名进行此测试)                                  |
+   | -T             | 看起来像文本文件                                         |
+   | -B             | 看起来像二进制文件                                       |
+   | -M             | 最后一次被修改后至今的天数                               |
+   | -A             | 最后一次被访问后至今的天数                               |
+   | -C             | 最后一次文件节点编号(inode)被变更后至今的天数            |
+** TODO 文件操作
++ rename 重命名
+  rename 'old', 'new';  同时 , 也可以用 => 即 rename 'old' => 'new';
++ unlink 删除文件
+  unlink + 文件列表: unlink 'slate', 'lava'; 或 qw//  或  glob 
+** stat lstat 获得文件的属性
+   如果所传参数为符号链接,stat返回的是符号链接指向的对象的属性,
+   而非符号链接本身的属性.如果想得到符号链接的属性则使用lstat函数
+   Return a 13-elements list
+   ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
+   $atime,$mtime,$ctime,$blksize,$blocks) = stat($filename);
+   | 0 dev      | device number of filesystem                      |
+   | 1 ino      | inode number                                     |
+   | 2 mode     | file mode  (type and permissions)                |
+   | 3 nlink    | number of (hard) links to the file               |
+   | 4 uid      | numeric user ID of file's owner                  |
+   | 5 gid      | numeric group ID of file's owner                 |
+   | 6 rdev     | the device identifier (special files only)       |
+   | 7 size     | total size of file, in bytes                     |
+   | 8 atime    | last access time in seconds since the epoch      |
+   | 9 mtime    | last modify time in seconds since the epoch      |
+   | 10 ctime   | inode change time in seconds since the epoch (*) |
+   | 11 blksize | preferred block size for file system I/O         |
+   | 12 blocks  | actual number of blocks allocated                |
+   
+** TODO 目录
+   chdir 相当于 cd 改变当前工作目录
+   chdir '/etc' or die "cannot chdir to /etc: $!";
+** 文件句柄
+   <STDIN>    行输入 操作
+   $line = <DATA> 读取一行
+   @array = <DATA> 读入数组
++ _ 虚拟文件句柄 (用上次查询过的文件信息来做当前测试)
+  测试同一文件的多项属性
+  if(-r $file and -w _)
+  可以在不同的语句中使用
+* 一些函数
+** 日期函数
+   | 函数           | 说明                                                         |
+   |----------------+------------------------------------------------------------- |
+   | time           | 返回1970年1月1日起经过无跳跃秒数                             |
+   |                | 可以用gmtime和localtime做进一步处理                          |
+   | times          | 返回一个四个元素的列表,给出当前进程及其子进程用户和系统时间, |
+   |                | 精确到秒                                                     |
+   |                | ($uer, $system, $cuser, $csystem) = times                    |
+   |                | 在标量上下文中,times 返回$user                               |
+   | localtime EXPR | 把一个由time函数返回的时间转换成一个9个元素的列表,           |
+   |                | 同时把该时间按照本地时区转换                                 |
+   |                | ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =      |
+   |                | localtime(time)                                              |
+   |                | 取得当前时间:$time = locatime; print $time;                  |
+   | gmtime EXPR    | 把一个由time 函数返回的时间转换成一个8个元素的列表,同时      |
+   |                | 把该时间转化成标准的格林威治时区时间                         |
+   
+** 简单
+   defined    判断是否为 undef 是返回假 否返回真
+
+* 结构控制
+** bool值
+   如果是数字，0为假，其余为真
+   如果是字符串，空('')为假，其余为真 ('0'与0为同一个标量,所以为假)
+   非数字或字符串，先转换为数字或字符串再判断
+   
+** 控制结构
+   if,  else,  elsif(不是elseif)
+   unless
+   必须加上{} (c中一句可以不加)
+   foreach $.. ( ){}
++ 循环控制
+  last 相当于break
+  next 结束本次循环,继续下次
+  redo 重新执行本次循环
+  continue 在given-when 中使用
+  
++ given-when 语句
+  默认使用break语句,不用输入
+  使用continue语句 继续测试 when条件
+* TODO 进程管理
+* perl books
+  perl cookbook
+  perl objects references
+  黑豹书
