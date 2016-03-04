@@ -1,83 +1,81 @@
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="org.css" />
 #+TITLE: 正则表达表（REGEX）
 #+AUTHOR: fxdgrb@gmail.com
+#+STARTUP: indent
 #+OPTIONS: \n:t
 #+OPTIONS: ^:nil
-*[[#零散知识][零散知识]]*
-*[[#字符][字符]]*
-    [[#元字符-字符组简记][元字符 字符组简记]]
-    [[#字符缩略表示法][字符缩略表示法]]
-    [[#posix-字符组][POSIX 字符组]]
-    [[#unicode][Unicode]]
-    [[#转义及控制字符][转义及控制字符]]
-*[[#量词][量词]]*
-*[[#锚点][锚点]]*
-*[[#模式][模式]]*
-*[[#条件判断][条件判断]]*
-*[[#分组-捕获-环视][分组 捕获 环视]]*
-*[[#引擎][引擎]]*
-*[[#other-language][other language]]*
++ *[[#零散知识][零散知识]]*
++ *[[#字符][字符]]*
+  - [[#元字符-字符组简记][元字符 字符组简记]]
+  - [[#字符缩略表示法][字符缩略表示法]]
+  - [[#posix-字符组][POSIX 字符组]]
+  - [[#unicode][Unicode]]
+  - [[#转义及控制字符][转义及控制字符]]
++ *[[#量词][量词]]*
++ *[[#锚点][锚点]]*
++ *[[#模式][模式]]*
++ *[[#条件判断][条件判断]]*
++ *[[#分组-捕获-环视][分组 捕获 环视]]*
++ *[[#引擎][引擎]]*
++ *[[#other-language][other language]]*
 
 
 * 零散知识
-   windows 下换行符为 \r\n
-   chomp和\Z不能解决
-   + 在字符组内部
-     *永远不是元字符
-     -通常是元字符(只有在开头的时候不是)
-     \b在字符组内外的意义不一样
-   POSIX规定   .不能匹配NUL(值为0的字符),大多数的脚本语言容许文本中的出现NUL(而且可以用.匹配)
-   可以用 \C 匹配单个字节  但最好不用
-
-   + 字符组的运算
-     .NET提供字符组的“减法”运算  [a-z]-[aeiou]
-     Java regex pachage 可以使用 &&  [a-z]&&[^aeiou]  [ [abc][xyz] ] [abc[xyz]] 等
-
-   \Q\E  取消之间元字符的特殊含义
-
-   + 多选结构(|)
-     优先级很低  eg. this and | or that 等价于 (this and)|(or that)
-     (this|that|)   空表达式在任何情况下都能匹配  相当于  (this|that)?
++ windows 下换行符为 \r\n
+  chomp和\Z不能解决
++ POSIX规定   .不能匹配NUL(值为0的字符),大多数的脚本语言容许文本中的出现NUL(而且可以用.匹配)
++ 可以用 \C 匹配单个字节  但最好不用
++ \Q\E  取消之间元字符的特殊含义
++ 在字符组内部
+  - *永远不是元字符
+  - -通常是元字符(只有在开头的时候不是)
+  - \b在字符组内外的意义不一样
++ 字符组的运算
+  - .NET提供字符组的“减法”运算  [a-z]-[aeiou]
+  - Java regex pachage 可以使用 &&  [a-z]&&[^aeiou]  [ [abc][xyz] ] [abc[xyz]] 等
++ 多选结构(|)
+  优先级很低  eg. this and | or that 等价于 (this and)|(or that) \
+  (this|that|)   空表达式在任何情况下都能匹配  相当于  (this|that)?
 * 字符
 ** 元字符 字符组简记
-   \R 匹配断行(\n \r\n)
-   \v 垂直空白符
-   \h 水平空白符
-   \d 等价于[0-9],如果工具软件支持Unicode，能匹配所有的Unicode数字
-   \D [^\d]
-   \w [a-zA-Z0-9_] 某些工具软件不能匹配_ 而另一些则能支持当前locale中的所有数字和字符。
-   如果支持Unicode 通常能表示所有数字和字符
-   在java.util.regex和PCRE(也包括PHP)中 严格等价于[a-zA-Z0-9_]
-   \s [ \f\n\r\t\v] 在支持Unicode的系统中，有时包含Unicode的换行控制字符U+0085，
-   有时包含"空白"属性\p{Z}
-   \S [^\s]
+| \R | 匹配断行(\n \r\n)                                                                 |
+| \v | 垂直空白符                                                                        |
+| \h | 水平空白符                                                                        |
+| \d | 等价于[0-9],如果工具软件支持Unicode，能匹配所有的Unicode数字                      |
+| \D | [^\d]                                                                             |
+| \w | [a-zA-Z0-9_] 某些工具软件不能匹配_ 而另一些则能支持当前locale中的所有数字和字符。 |
+|    | 如果支持Unicode 通常能表示所有数字和字符                                          |
+|    | 在java.util.regex和PCRE(也包括PHP)中 严格等价于[a-zA-Z0-9_]                       |
+| \s | [ \f\n\r\t\v] 在支持Unicode的系统中，有时包含Unicode的换行控制字符U+0085，        |
+|    | 有时包含"空白"属性\p{Z}                                                           |
+| \S | [^\s]                                                                             |
 ** 字符缩略表示法
-   | \a | 警报　     | 通常对应ASCII中的<BEL>字符，八进制编码007                              |
-   | \b | 退格　     | 通常对应ASCII中的<BS>字符，八进制编码010.                              |
-   |    |            | (在许多流派中，\b只有在字符组内部才表示这样的意义，否则代表单词分界符) |
-   | \e | Escape字符 | 　对应ASCII中的<ESC>字符，八进制编码033                                |
-   | \f | 进纸符　   | 对应ASCII中的<FF>字符，八进制编码014                                   |
-   | \n | 换行符　   | Unix DOS/Windows上对应ASCII的<LF>，八进制编码012.                      |
-   |    |            | MacOS中对应ASCII的<CR>字符，十进制编码015.                             |
-   |    |            | 在Java或任意一种.NET语言中，不论采用什么平台，都对应ASCII<LF>字符      |
-   | \r | 回车　     | 对应ASCII的<CR>字符。在MacOS中对应ASCII的<LF>字符。                    |
-   |    |            | 在Java或任意一种.NET语言中，不论采用什么平台，都对应ASCII<CR>字符      |
-   | \t | 水平制表符 | 对应ASCII的<HT>字符，八进制编码011                                     |
-   | \v | 垂直制表符 | 对应ASCII的<VT>字符，八进制编码013                                     |
+| \a | 警报　     | 通常对应ASCII中的<BEL>字符，八进制编码007                              |
+| \b | 退格　     | 通常对应ASCII中的<BS>字符，八进制编码010.                              |
+|    |            | (在许多流派中，\b只有在字符组内部才表示这样的意义，否则代表单词分界符) |
+| \e | Escape字符 | 　对应ASCII中的<ESC>字符，八进制编码033                                |
+| \f | 进纸符　   | 对应ASCII中的<FF>字符，八进制编码014                                   |
+| \n | 换行符　   | Unix DOS/Windows上对应ASCII的<LF>，八进制编码012.                      |
+|    |            | MacOS中对应ASCII的<CR>字符，十进制编码015.                             |
+|    |            | 在Java或任意一种.NET语言中，不论采用什么平台，都对应ASCII<LF>字符      |
+| \r | 回车　     | 对应ASCII的<CR>字符。在MacOS中对应ASCII的<LF>字符。                    |
+|    |            | 在Java或任意一种.NET语言中，不论采用什么平台，都对应ASCII<CR>字符      |
+| \t | 水平制表符 | 对应ASCII的<HT>字符，八进制编码011                                     |
+| \v | 垂直制表符 | 对应ASCII的<VT>字符，八进制编码013                                     |
 
 ** POSIX 字符组
-   [:alnum:]  字母字符和数字字符
-   [:alpha:]  字母
-   [:blank:]  空格和制表符
-   [:cntrl:]  控制字符
-   [:digit:]  数字
-   [:graph:]  非空字符(即空白字符 控制字符之外的字符)
-   [:lower:]  小写字母
-   [:print:]  类似[:graph:] 但是包含空白字符
-   [:punct:]  标点符号
-   [:space:]  所有的空白字符
-   [:upper:]  大写字母
-   [:xdigit:] 十六进制中容许出现的数字
+| [:alnum:]  | 字母字符和数字字符                      |
+| [:alpha:]  | 字母                                    |
+| [:blank:]  | 空格和制表符                            |
+| [:cntrl:]  | 控制字符                                |
+| [:digit:]  | 数字                                    |
+| [:graph:]  | 非空字符(即空白字符 控制字符之外的字符) |
+| [:lower:]  | 小写字母                                |
+| [:print:]  | 类似[:graph:] 但是包含空白字符          |
+| [:punct:]  | 标点符号                                |
+| [:space:]  | 所有的空白字符                          |
+| [:upper:]  | 大写字母                                |
+| [:xdigit:] | 十六进制中容许出现的数字                |
 ** Unicode
 *** Unicode 属性，字母表和区块
 **** 属性
@@ -136,13 +134,13 @@
      | \p{Cn} | \p{Unassigned} 目前尚未分配字符的代码点                                                |
 
 **** 区块
-     \p{InTibetan} 从U+0f00 到 U+0fff的256个代码点
-     区块可能含未赋值的代码点
-     并不是和区块相关的所有字符都在区块内部
-     区块通常包含不相关的字符
-     属于横个字母表的字符可能同时包含于多个区块
++ \p{InTibetan} 从U+0f00 到 U+0fff的256个代码点
++ 区块可能含未赋值的代码点
++ 并不是和区块相关的所有字符都在区块内部
++ 区块通常包含不相关的字符
++ 属于横个字母表的字符可能同时包含于多个区块
 *** Unicode 组合字符序列 \X
-    #+BEGIN_SRC perl
+#+BEGIN_SRC perl
     $reg = qr/\X/;
     # 缩略表示 \P{M}\p{M}* 它可以视为 .的扩展。它匹配一个基本字符(除\p{M}之外的任何字符)，
     # 之后可能有任意数目的组合字符(除\p{M}之外)
@@ -150,29 +148,29 @@
     # 能够匹配结尾的组合字符
     # \X始终能匹配换行符和其他Unicode行终结符
     # 点号无论什么情况下都能匹配任何字符，而\X 不能匹配以组合字符开头的字符
-    #+END_SRC
+#+END_SRC
 
 
 ** 转义及控制字符
-   八进制转义  \num         \015\012  表示ASCII的CR/LF 序列
-   十六进制转义 \xnum \x{num} \unum \Unum
-   \nbsp\nbsp perl只支持\x
-   \nbsp\nbsp java支持 \xFF \uFFFF
-   控制字符    \cchar      \cH 匹配ASCII中的退格符， \cJ 匹配ASCII中的换行符
-   GNU Emacs的元序列为 ?^char  如  ?^H
++ 八进制转义  \num         \015\012  表示ASCII的CR/LF 序列
++ 十六进制转义 \xnum \x{num} \unum \Unum
+   perl只支持\x \
+   java支持 \xFF \uFFFF \
++ 控制字符    \cchar      \cH 匹配ASCII中的退格符， \cJ 匹配ASCII中的换行符
++ GNU Emacs的元序列为 ?^char  如  ?^H
 
 * 量词
-   匹配优先量词 * + ? {num, num}  尽可能多的匹配
-   忽略优先量词 *?  /+?  ??  {num, num}?  尽可能少的匹配
-   占有优先量词 *+  ++  ?+  {num, num}+  一旦匹配不允许回溯 类似固化分组 (java.util.regex  PCRE)
++ 匹配优先量词 * + ? {num, num}  尽可能多的匹配
++ 忽略优先量词 *?  /+?  ??  {num, num}?  尽可能少的匹配
++ 占有优先量词 *+  ++  ?+  {num, num}+  一旦匹配不允许回溯 类似固化分组 (java.util.regex  PCRE)
 
 * 锚点
-   \A 匹配字符串的绝对开头
-   \z 匹配字符串的绝对结尾
-   \Z 匹配字符串的结尾可以怱略换行符
-   一般与^$相似
-   在/m 模式下^$匹配行首行尾
-   \G 上一次匹配的结束位置  一般在 /c 模式下使用
+- \A 匹配字符串的绝对开头
+- \z 匹配字符串的绝对结尾
+- \Z 匹配字符串的结尾可以怱略换行符 \
+  一般与^$相似 \
+  在/m 模式下^$匹配行首行尾
+- \G 上一次匹配的结束位置  一般在 /c 模式下使用
 * 模式
 + /m 多行模式　　　　　　　 ^$可以字符串内部的位置　\A \Z 相当于普通的　^ $
 + /x 宽松排列和注释模式　　可以在表达式中加入空白符
@@ -234,7 +232,7 @@
 
   python php .net 支持命名捕获  (?P<Area>\d\d\d)  (?<Area>\d\d\d)
 
-** <<ch9-1>> 在正则中内嵌代码
+** 在正则中内嵌代码
 + 动态正则结构 (??{perl code})
   #+BEGIN_SRC perl
     ^(\d+)(??{"X x { $1 }"})$  # 匹配 '3XXX' '12XXXXXXXXXXXX' 不能匹配'3X' '7XXXX'
@@ -246,7 +244,7 @@
   if( $text =~ m/\b ( \w+ \( $levelN \) ) /x)
     print "found function call: $1";
   #+END_SRC
-+ 内嵌代码结构 (?{arbitrary perl code})
++ 内嵌代码结构 (?{arbitrary perl code}) \
   不需要用到返回值 更为通用,适合调试正则
   #+BEGIN_SRC perl
   "abcdefgh" =~ m{
@@ -255,24 +253,26 @@
   }x;
   #+END_SRC
   结果是：
-  starting match at [|abcdefgh]
-  starting match at [a|bcdefgh]
-  starting match at [ab|cdefgh]
+  starting match at [|abcdefgh] \
+  starting match at [a|bcdefgh] \
+  starting match at [ab|cdefgh] \
   starting match at [abc|defgh]
 * 引擎
    NFA DFA
    + DFA
-     最左最长原则 不支持许多功能 没有回溯 文本主导
-     速度与正则表达式无关
+     - 最左最长原则 不支持许多功能 没有回溯 文本主导
+     - 速度与正则表达式无关
    + NFA 表达式主导 回溯
-     速度与表达式直接相关
+     - 速度与表达式直接相关
 
 * TODO other-language
 ** java regex 中的 \
-   java 中Pattern.compile(String str);
-   str 并不是正则表达式，只是一个字符串，经过编译之后才是正真的表达式
+#+BEGIN_SRC java
+   Pattern.compile(String str);
+   // str 并不是正则表达式，只是一个字符串，经过编译之后才是正真的表达式
    Pattern.compile("[\u2e80-\u9FFF]")
-   经过编译 \u2e80 \u9FFF 会变为相应的字符，整个表达式变为类似 [a-z]这种形式
+   // 经过编译 \u2e80 \u9FFF 会变为相应的字符，整个表达式变为类似 [a-z]这种形式
    Pattern.compile("[\\u2e80-\\u9FFF]")
-   编译后 变为 [\u2e80-\u9fff] 这种形式
-   两种形式都可以匹配成功
+   // 编译后 变为 [\u2e80-\u9fff] 这种形式
+   // 两种形式都可以匹配成功
+#+END_SRC
