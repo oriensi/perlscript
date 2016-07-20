@@ -2,6 +2,7 @@
 use File::Find;
 use XML::Simple;
 use XML::LibXML;
+use Spreadsheet::WriteExcel;
 use Data::Dumper;
 use strict;
 use warnings;
@@ -14,6 +15,10 @@ say "values: @values";
 say "write to: $outFile";
 
 my @res_dirs;
+
+my $workbook = Spreadsheet::WriteExcel->new($outFile);
+my $worksheet = $workbook->add_worksheet();
+my $row = 0;
 
 # 搜索strings.xml 文件
 sub find_res_dir {
@@ -49,15 +54,30 @@ sub parse_xml {
 
 # 写入xls文件
 sub write_to_xls {
+    my ($file_name, $content) = @_;
+    while (my ($name, $value) = each (%$content)) {
+        $worksheet->write($row, 0, $file_name);
+        $worksheet->write($row, 1, $name);
+        $worksheet->write($row, 2, $value);
+        $row++;
+    }
 }
 
 
 find(\&find_res_dir, "$root"."packages/apps");
 
-for (@res_dirs) {
+die "need out file name" unless $outFile;
+
+#for (@res_dirs) {
     my $file = shift @res_dirs;
     say "FILE: ", $file;
     my $parserxml_ref =  parse_xml($file);
-    print Dumper $parserxml_ref;
-    #write_to_xls($file, $parserxml_ref);
-}
+    #print Dumper $parserxml_ref;
+
+    $worksheet->write($row, 0, "path");
+    $worksheet->write($row, 1, "name");
+    $worksheet->write($row, 2, "value");
+    $row++;
+
+    write_to_xls($file, $parserxml_ref);
+#}
