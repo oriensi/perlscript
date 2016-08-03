@@ -15,4 +15,5 @@ perl -MCPAN -e 'install Spreadsheet::ParseExcel'
 perl -MCPAN -e 'install Spreadsheet::WriteExcel'
 # XML
 perl -MCPAN -e 'install XML::Simple'
+perl -MCPAN -e 'install XML::LibXML'
 ```
