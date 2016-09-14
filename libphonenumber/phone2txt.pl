@@ -124,6 +124,8 @@ while (<FH>) {
 say "read ok";
 close FH;
 
+@google_geo = grep { $_ =~ /^(\d{5})/ && $1 == 86177 } @google_geo;
+
 #open OUT, ">>", "177.txt"  or die "open err";
 foreach my $number (keys %phonenumber_geo) {
     my $match = 0;
@@ -138,8 +140,8 @@ foreach my $number (keys %phonenumber_geo) {
                     last;
                 }
             }
+        $match = 1 unless $match == -1;
         }
-        $match = 1;
     }
     if ($match == -1) {
         say "err:  $number   need modify";
