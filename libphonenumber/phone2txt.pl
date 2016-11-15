@@ -9,25 +9,6 @@ use 5.010;
 my $parser   = Spreadsheet::ParseExcel->new();
 my $workbook = $parser->parse('177H.xls');
 
-my %city2en = (  广东 => "Guangdong",  上海 => "Shanghai",
-                 江苏 => "Jiangsu",    浙江 => "Zhejiang",
-                 福建 => "Fujian",     四川 => "Sichuan",
-                 湖北 => "Hubei",      湖南 => "Hunan",
-                 陕西 => "Shanxi",     云南 => "Yunnan",
-                 安徽 => "Anhui",      广西 => "Guangxi",
-                 新疆 => "Xinjiang",   重庆 => "Chongqing",
-                 江西 => "Jiangxi",    甘肃 => "Gansu",
-                 贵州 => "Guizhou",    海南 => "Hainan",
-                 宁夏 => "Ningxia",    青海 => "Qinghai",
-                 西藏 => "Xizang",     北京 => "Beijing",
-                 天津 => "Tianjin",    山东 => "Shandong",
-                 河南 => "Henan",      辽宁 => "Liaoning",
-                 河北 => "Hebei",      山西 => "Shanxi",
-                 内蒙古 => "Neimenggu",吉林 => "Jilin",
-                 黑龙江 => "Heilongjiang",
-    );
-my @city_spec = qw(天津 北京 上海 重庆 内蒙古 西藏 新疆 广西 宁夏);
-
 if ( !defined $workbook ) {
     die $parser->error(), ".\n";
 }
@@ -61,18 +42,18 @@ for my $worksheet ( $workbook->worksheets() ) {
             my @nums = split '[^\d]', $value;
             @nums = map ("86".$prefix_num{$col}.$_,  @nums);
             for my $num (@nums) {
-                my @addr = ($province, $city);
+                my $new_add = Add->new('prov' => $province, 'city' => $city);
                 my @adds;
                 if ($phonenumber_geo{$num}) {
                     my $addr = $phonenumber_geo{$num};
                     if ($addr) {
-                        for (@$addr) {
-                            die "address error: $num $province" unless ($_[0] =~ /$province/);
+                        for my $add (@$addr) {
+                            die "address error: $num $province" unless ($add->{'prov'} =~ /$province/);
                         }
                     }
                     push @adds, @$addr;
                 }
-                push @adds, \@addr;
+                push @adds, $new_add;
                 $phonenumber_geo{$num} = \@adds;
             }
         }
@@ -81,24 +62,41 @@ for my $worksheet ( $workbook->worksheets() ) {
 # print Dumper %phonenumber_geo;
 
 sub write_out {
-    open OUT, ">", "173.txt"  or die "open err";
+    open ZH, ">", "86_zh.txt"  or die "open err";
+    open EN, ">", "86_en.txt" or die "open err";
     for my $number (keys %phonenumber_geo) {
         my $add = $phonenumber_geo{$number};
         #   print Dumper $add;
         #   print Dumper $phonenumber_geo{number};
-        $add = getadd($add);
-        say OUT $number."|".$add;
+        my $zh_add = get_zh_add($add);
+        say ZH $number."|".$zh_add;
+        my $en_add = get_en_add($add);
+        say EN $number."|".$en_add;
     }
-    close OUT;
+    close ZH;
+    close EN;
 }
 
-sub getadd {
+sub get_en_add {
+
+    for my $number (keys %phonenumber_geo) {
+        my $add = $phonenumber_geo{$number};
+        $add = get_en_add($add);
+        say EN $number."|".$add;
+    }
+    close EN;
+}
+
+sub get_zh_add {
     my ($add) = shift;
 #    print Dumper $add;
     my @adds = $add->[0];
     my $address = $adds[0][0];
     say "shen:". $address;
-    my $index ;
+    for (@adds) {
+        die "spec province: $address" unless $address eq $_->[0];
+    }
+    my $index;
     for ($index = 0; $index <= $#city_spec; $index++) {
         last if ($address eq $city_spec[$index])
     }
