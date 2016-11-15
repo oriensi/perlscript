@@ -15,6 +15,10 @@ my $workbook = $parser->parse($file);
 if ( !defined $workbook ) {
   die $parser->error(), ".\n";
 }
+
+my @municipality = qw/上海市 重庆市 北京市 天津市/;
+# my %spec_city = ();
+
 my @adds;
 for my $worksheet ( $workbook->worksheets() ) {
   my ( $row_min, $row_max ) = $worksheet->row_range();
@@ -60,16 +64,34 @@ foreach my $key (keys %all_adds_cn) {
 
 for my $add (@adds) {
   my ($prov, $city) = ($add->{'prov'}, $add->{'city'});
-  my ($count, $add_str);
+  my ($add_str, @temp_add);
   foreach my $key (keys %all_adds_cn) {
-    if ($key =~ /$prov/ && $key =~ /$city/) {
-      $count++;
-      $add_str .= "${key}\t";
-      $add_str .= $all_adds_cn{$key};
+    if ($key =~ /${prov}.*${city}/) {
+      push @temp_add , $key;
     }
   }
-  if ($count > 1) {
-    $add_str = "==========".$add_str;
+  if (scalar @temp_add == 1) {
+    $add->{'addr_zh'} = $temp_add[0];
+    $add->{'addr_en'} = $all_adds_cn{$temp_add[0]};
+  } elsif (scalar @temp_add == 0) {
+    for (@municipality) {
+      if (/$prov/) {
+        $add->{'addr_zh'} = $_;
+        $add->{'addr_en'} = $all_adds_cn{$_};
+      }
+    }
+  } else {
+    my @t_add = grep { !/\x{3001}/ } @temp_add;
+    if (scalar @t_add == 1) {
+      $add->{'addr_zh'} = "$t_add[0]\t";
+      $add->{'addr_en'} = $all_adds_cn{$t_add[0]};
+    } else {
+      $add->{'addr_zh'} = "============$temp_add[0]";
+      $add->{'addr_zh'} = $all_adds_cn{$temp_add[0]};
+    }
   }
-  say $add->{'prov'}."\t".$add->{'city'}."\t".$add_str;
+  # say $add->{'prov'}."\t".$add->{'city'}."\t".$add_str;
 }
+
+use YAML::XS;
+print Dump @adds;

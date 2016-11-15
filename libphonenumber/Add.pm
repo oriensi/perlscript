@@ -14,8 +14,8 @@ sub new {
   my $this = {};
   $this->{'prov'} = $parm{'prov'};
   $this->{'city'} = $parm{'city'};
-  $this->{'index'} = $parm{'index'};
-  $this->{'add'} = $parm{'add'};
+  $this->{'addr_en'} = $parm{'addr_en'};
+  $this->{'addr_zh'} = $parm{'addr_zh'};
   bless $this, $type;
 }
 

@@ -4,7 +4,9 @@ use Data::Dumper;
 use strict;
 use warnings;
 use utf8;
+use Add;
 use 5.010;
+use YAML::XS;
 
 my $parser   = Spreadsheet::ParseExcel->new();
 my $workbook = $parser->parse('177H.xls');
@@ -12,6 +14,9 @@ my $workbook = $parser->parse('177H.xls');
 if ( !defined $workbook ) {
     die $parser->error(), ".\n";
 }
+
+
+my %all_addrs = &load_all_adds;
 
 my %phonenumber_geo;
 my %prefix_num;
@@ -42,7 +47,8 @@ for my $worksheet ( $workbook->worksheets() ) {
             my @nums = split '[^\d]', $value;
             @nums = map ("86".$prefix_num{$col}.$_,  @nums);
             for my $num (@nums) {
-                my $new_add = Add->new('prov' => $province, 'city' => $city);
+                # my $new_add = Add->new('prov' => $province, 'city' => $city);
+                my $new_add = $all_addrs{$province.'-'.$city};
                 my @adds;
                 if ($phonenumber_geo{$num}) {
                     my $addr = $phonenumber_geo{$num};
@@ -59,7 +65,7 @@ for my $worksheet ( $workbook->worksheets() ) {
         }
     }
 }
-# print Dumper %phonenumber_geo;
+print Dumper %phonenumber_geo;
 
 sub write_out {
     open ZH, ">", "86_zh.txt"  or die "open err";
@@ -89,7 +95,7 @@ sub get_en_add {
 
 sub get_zh_add {
     my ($add) = shift;
-#    print Dumper $add;
+    #    print Dumper $add;
     my @adds = $add->[0];
     my $address = $adds[0][0];
     say "shen:". $address;
@@ -111,10 +117,19 @@ sub get_zh_add {
     $address .= join "\x3001", @citys;
 }
 
+sub load_all_adds {
+    open FH, "<", "all_addrs.yaml" or die "open err";
+    my $yaml_content = do {local $/; <FH>};
+    close FH;
+    my @load_addrs = Load $yaml_content;
+    my %all_addrs = map {$_->{'prov'}.'-'.$_->{'city'} => $_ } @load_addrs;
+}
+
 my @google_geo;
 open FH, "<", "86zh.txt" or die "open err";
 
 while (<FH>) {
+    chomp;
     next if /^#/;
     next if /^\s*$/;
     push @google_geo, $_;
@@ -128,7 +143,6 @@ close FH;
 foreach my $number (keys %phonenumber_geo) {
     my $match = 0;
     for my $line (@google_geo) {
-        chomp $line;
         if ($line =~ /^$number\|/) {
             say $line;
             my @adds = $phonenumber_geo{$number}->[0];
@@ -138,7 +152,7 @@ foreach my $number (keys %phonenumber_geo) {
                     last;
                 }
             }
-        $match = 1 unless $match == -1;
+            $match = 1 unless $match == -1;
         }
     }
     if ($match == -1) {
