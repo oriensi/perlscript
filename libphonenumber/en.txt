@@ -154779,7 +154779,7 @@
 86932|Dingxi, Gansu
 86933|Pingliang, Gansu
 86934|Xifeng, Gansu
-86935|Jinchang, Gansu
+86935|Wuwei, Gansu
 86936|Zhangye, Gansu
 86937|Jiuquan, Gansu
 86938|Tianshui, Gansu
