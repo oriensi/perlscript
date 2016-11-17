@@ -42,25 +42,31 @@ for my $worksheet ( $workbook->worksheets() ) {
 
             my $value = $cell->value();
             # $value =~ s/(\d+)-(\d+)(?{$temp = join '、', ($1 .. $2)})/$temp/g;
+            my $not_null_value = $value;
             while ($value =~ m/(\d+)-(\d+)/) {
                 my $temp;
                 my @temp_array = ($1 .. $2);
                 my @num_array;
                 while (scalar @temp_array) {
-                    my $shift_temp = shift @temp_array;
-                    if ($shift_temp % 10 == 0 && $shift_temp + 9 <= $temp_array[-1]) {
-                        my $push_num = $shift_temp;
-                        chop $push_num;
-                        push @num_array, $push_num;
-                        @temp_array = grep { $_ > $shift_temp + 9 } @temp_array;
+                    my $len = length($temp_array[-1] - $temp_array[0] + 1) - 1;
+                    if ($len >= 1 && rindex($temp_array[0], '0') > -1) {
+                        for my $i (reverse (1 .. $len)) {
+                            if (rindex($temp_array[0], '0' x $i) > -1) {
+                                my $push = substr($temp_array[0], 0, 0 - $i);
+                                push @num_array, $push;
+                                @temp_array = grep {$_ > $temp_array[0] + 10**$i - 1} @temp_array;
+                                last;
+                            }
+                        }
                     } else {
-                      push @num_array, $shift_temp;
+                        push @num_array, $shift_temp;
                     }
-                  }
+                }
                 $temp = join ',', @num_array;
                 $value =~ s/(\d+)-(\d+)/$temp/;
-              }
+            }
             my @nums = split '[^\d]', $value;
+            @nums = ('') if $not_null_value && !@nums;
             @nums = map {"86".$prefix_num{$col}.$_} @nums;
             for my $num (@nums) {
                 # my $new_add = Add->new('prov' => $province, 'city' => $city);
