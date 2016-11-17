@@ -32,9 +32,9 @@ for my $worksheet ( $workbook->worksheets() ) {
     my $city     = $worksheet->get_cell($row, 1)->value;
     my $exist;
     for my $add (@adds) {
-      $exist = 1 and last if ($all_addrs{$province.'-'.$city} || ($add->{'prov'} eq $province && $add->{'city'} eq $city));
+      $exist = 1 and last if ($add->{'prov'} eq $province && $add->{'city'} eq $city);
     }
-    next if $exist;
+    next if $exist || $all_addrs{$province.'-'.$city};
     my $new_add = Add->new('prov' => $province, 'city' => $city);
     push @adds, $new_add;
   }
@@ -42,24 +42,29 @@ for my $worksheet ( $workbook->worksheets() ) {
 }
 
 my %all_adds_cn;
-open ZH, "<", "zh.txt" or die "open err";
+open ZH, "<", "86zh.txt" or die "open err";
 while (<ZH>) {
   _utf8_on $_;
   chomp;
+  next if /^#/;
+  next if /^\s*$/;
   my ($num, $add) = split /\|/;
-  $all_adds_cn{$add} = $num;
+  $all_adds_cn{$add} = $num unless $all_adds_cn{$add};
 }
 close ZH;
 
 my %all_adds_en;
-open EN, "<", "en.txt" or die "open err";
+open EN, "<", "86en.txt" or die "open err";
 while (<EN>) {
   _utf8_on $_;
   chomp;
+  next if /^#/;
+  next if /^\s*$/;
   my ($num, $add) = split /\|/;
-  $all_adds_en{$add} = $num;
+  $all_adds_en{$add} = $num unless $all_adds_en{$add};
 }
 close EN;
+
 %all_adds_en = reverse %all_adds_en;
 foreach my $key (keys %all_adds_cn) {
   $all_adds_cn{$key} = $all_adds_en{$all_adds_cn{$key}};
@@ -74,6 +79,7 @@ for my $add (@adds) {
       push @temp_add , $key;
     }
   }
+
   if (scalar @temp_add == 1) {
     $add->{'addr_zh'} = $temp_add[0];
     $add->{'addr_en'} = $all_adds_cn{$temp_add[0]};
@@ -87,17 +93,17 @@ for my $add (@adds) {
   } else {
     my @t_add = grep { !/\x{3001}/ } @temp_add;
     if (scalar @t_add == 1) {
-      $add->{'addr_zh'} = "$t_add[0]";
+      $add->{'addr_zh'} = $t_add[0];
       $add->{'addr_en'} = $all_adds_cn{$t_add[0]};
     } else {
-      $add->{'addr_zh'} = "============$temp_add[0]";
-      $add->{'addr_zh'} = $all_adds_cn{$temp_add[0]};
+      $add->{'addr_zh'} = "===".$temp_add[0];
+      $add->{'addr_en'} = $all_adds_cn{$temp_add[0]};
     }
   }
   # say $add->{'prov'}."\t".$add->{'city'}."\t".$add_str;
 }
 
 use YAML::XS;
-open ALL, '>', 'all_addrs.yaml' or die 'open err';
+open ALL, '>>', 'all_addrs.yaml' or die 'open err';
 print ALL (Dump @adds);
 close ALL;

@@ -54,14 +54,14 @@ for my $worksheet ( $workbook->worksheets() ) {
                         push @num_array, $push_num;
                         @temp_array = grep { $_ > $shift_temp + 9 } @temp_array;
                     } else {
-                        push @num_array, $shift_temp;
+                      push @num_array, $shift_temp;
                     }
-                }
+                  }
                 $temp = join ',', @num_array;
                 $value =~ s/(\d+)-(\d+)/$temp/;
-            }
+              }
             my @nums = split '[^\d]', $value;
-            @nums = map ("86".$prefix_num{$col}.$_,  @nums);
+            @nums = map {"86".$prefix_num{$col}.$_} @nums;
             for my $num (@nums) {
                 # my $new_add = Add->new('prov' => $province, 'city' => $city);
                 my $new_add = $all_addrs{$province.'-'.$city};
@@ -121,8 +121,7 @@ sub get_zh_add {
 }
 
 
-
-sub get_origin_data_cn {
+sub get_google_data_cn {
     if (-f $prefix.'_zh.txt') {
         open FH, "<", $prefix.'_zh.txt' or die "open err";
     } else {
@@ -133,11 +132,11 @@ sub get_origin_data_cn {
         chomp;
         next if /^#/;
         next if /^\s*$/;
+        next if ! /^$prefix/;
         push @google_data, $_;
     }
-    say "read ok";
     close FH;
-    @google_data;
+    map {$_ =~ /^(\d+)\|(.*)$/; $1 => $2 } @google_data;
 }
 
 sub get_google_data_en {
@@ -146,65 +145,70 @@ sub get_google_data_en {
     } else {
         open FH, "<", "86en.txt" or die "open err";
     }
-    my @google_data_en;
+    my @google_data;
     while (<FH>) {
         chomp;
         next if /^#/;
         next if /^\s*$/;
-        push @google_data_en, $_;
+        next if ! /^$prefix/;
+        push @google_data, $_;
     }
     close FH;
-    @google_data_en;
+    map {$_ =~ /^(\d+)\|(.*)$/; $1 => $2 } @google_data;
+}
+
+sub update_google_data {
+  my %google_geo = @_;
+  my @remove;
+  foreach my $number (keys %phonenumber_geo) {
+    my $match = 0;
+    push @remove, $number and next if ($google_geo{$number});
+    my @key = grep { $number =~ /^$_\d+$/ } keys %google_geo;
+    push @remove, @key and next if @key;
+    @key = grep { $_ =~ /^${number}\d+$/ } keys %google_geo;
+    push @remove, @key and next if @key;
+  }
+
+  say "remove:";
+  say "--: ".$_.'|'.$google_geo{$_} for sort @remove;
+  @remove;
 }
 
 my @remove;
-my @google_data = get_origin_data_cn;
-@google_data = grep { $_ =~ /^(\d{5})/ && $1 == $prefix } @google_data;
-my %google_geo = map {$_ =~ /^(\d+)|(.*)$/; $1 => $2 } @google_data;
+say STDERR "match...";
+&write_out_file("zh");
+say STDERR "zh write OK!";
+&write_out_file("en");
+say STDERR "en write OK!";
 
-foreach my $number (keys %phonenumber_geo) {
-    my $match = 0;
-    push @remove, $number and next if ($google_geo{$number});
-    my ($key) = grep { $number =~ /^$_\d+$/ } keys %google_geo;
-    push @remove, $key and next if ($key);
+sub write_out_file {
+  my $local = shift;
+  my $is_zh = $local eq "zh";
+  my %google_geo = $is_zh ? get_google_data_cn : get_google_data_en;
+  @remove = update_google_data %google_geo if !@remove;
+  delete $google_geo{$_} for @remove;
+  say "add:" if $is_zh;
+  open FH, ">", $prefix."_".$local.".txt" or die "open err";
+  for my $number (sort keys %phonenumber_geo) {
+    my $add = $phonenumber_geo{$number};
+    my $local_addr = $is_zh ? get_zh_add($add) : get_en_add($add);
+    $google_geo{$number} = $local_addr;
+    say '++: '.$number.'|'.$local_addr if $is_zh;
+  }
+  say FH $_.'|'.$google_geo{$_} for (sort keys %google_geo);
+  close FH;
 }
 
-&write_out_zh;
-say "zh write OK!";
-&write_out_en;
-say "en write OK!";
-
-sub write_out_en {
-    my @google_data_en = get_google_data_en;
-    @google_data_en = grep { $_ =~ /^(\d{5})/ && $1 == $prefix } @google_data_en;
-    my %google_geo_en = map {$_ =~ /^(\d+)|(.*)$/; $1 => $2 } @google_data_en;
-
-    open EN, ">", $prefix."_en.txt" or die "open err";
-    delete $google_geo_en{$_} for @remove;
-    for my $number (keys %phonenumber_geo) {
-        my $add = $phonenumber_geo{$number};
-        my $en_add = get_en_add($add);
-        $google_geo_en{$number} = $en_add;
-    }
-    say EN $_.'|'.$google_geo_en{$_} for (sort keys %google_geo_en);
-    close EN;
-}
-
-sub write_out_zh {
-    open ZH, ">", $prefix."_zh.txt"  or die "open err";
-    delete $google_geo{$_} for @remove;
-    for my $number (keys %phonenumber_geo) {
-        my $add = $phonenumber_geo{$number};
-        #   print Dumper $add;
-        #   print Dumper $phonenumber_geo{number};
-        my $zh_add = get_zh_add($add);
-        $google_geo{$number} = $zh_add;
-    }
-    for (sort keys %google_geo) {
-        say ZH $_.'|'.$google_geo{$_};
-    }
-    close ZH;
-}
-
-
-#close OUT;
+# sub write_out_zh {
+#   my %google_geo = get_google_data_zh;
+#   @remove = update_google_data %google_geo if !@remove;
+#   delete $google_geo{$_} for @remove;
+#   open FH, ">", $prefix."_zh.txt" or die "open err";
+#   for my $number (keys %phonenumber_geo) {
+#     my $add = $phonenumber_geo{$number};
+#     my $local_addr = get_zh_add($add);
+#     $google_geo{$number} = $local_addr;
+#   }
+#   say FH $_.'|'.$google_geo{$_} for (sort keys %google_geo);
+#   close FH;
+# }
