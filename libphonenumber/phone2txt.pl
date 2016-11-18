@@ -49,9 +49,9 @@ for my $worksheet ( $workbook->worksheets() ) {
                 my @num_array;
                 while (scalar @temp_array) {
                     my $len = length($temp_array[-1] - $temp_array[0] + 1) - 1;
-                    if ($len >= 1 && rindex($temp_array[0], '0') > -1) {
+                    if ($len >= 1 && substr($temp_array[0], -1) == 0) {
                         for my $i (reverse (1 .. $len)) {
-                            if (rindex($temp_array[0], '0' x $i) > -1) {
+                            if (substr($temp_array[0], 0 - $i) == 0) {
                                 my $push = substr($temp_array[0], 0, 0 - $i);
                                 push @num_array, $push;
                                 @temp_array = grep {$_ > $temp_array[0] + 10**$i - 1} @temp_array;
@@ -59,7 +59,7 @@ for my $worksheet ( $workbook->worksheets() ) {
                             }
                         }
                     } else {
-                        push @num_array, $shift_temp;
+                        push @num_array, shift @temp_array;
                     }
                 }
                 $temp = join ',', @num_array;
@@ -167,16 +167,18 @@ sub update_google_data {
   my %google_geo = @_;
   my @remove;
   foreach my $number (keys %phonenumber_geo) {
-    my $match = 0;
-    push @remove, $number and next if ($google_geo{$number});
-    my @key = grep { $number =~ /^$_\d+$/ } keys %google_geo;
-    push @remove, @key and next if @key;
-    @key = grep { $_ =~ /^${number}\d+$/ } keys %google_geo;
-    push @remove, @key and next if @key;
+    # push @remove, $number and next if ($google_geo{$number});
+    if ($google_geo{$number}) { push @remove, $number; delete $google_geo{$number};}
+    my @key = grep {index($number, $_) > -1} keys %google_geo;
+    # push @remove, @key and next if @key;
+    if (@key) { push @remove, @key; delete $google_geo{$_} for @key}
+    @key = grep {index($_, $number) > -1} keys %google_geo;
+    # push @remove, @key and next if @key;
+    if (@key) { push @remove, @key; delete $google_geo{$_} for @key}
   }
 
   say "remove:";
-  say "--: ".$_.'|'.$google_geo{$_} for sort @remove;
+  say "--: ".$_ for sort @remove;
   @remove;
 }
 
